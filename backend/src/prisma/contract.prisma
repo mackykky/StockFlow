@@ -31,8 +31,7 @@ model User {
   role           UserRole        @default(STAFF)
   isActive       Boolean         @default(true)
   createdAt      TimestamptzString @default(now())
-  updatedAt      temporal.updatedAtString()
-
+  updatedAt      DateTime(as: string) @onCreate(now()) @onUpdate(now())
   stockMovements StockMovement[]
   sales          Sale[]
 }
@@ -43,7 +42,7 @@ model Category {
   description String?
   isActive    Boolean  @default(true)
   createdAt   TimestamptzString @default(now())
-  updatedAt   temporal.updatedAtString()
+  updatedAt   DateTime(as: string) @onCreate(now()) @onUpdate(now())
   products    Product[]
 }
 
@@ -60,10 +59,10 @@ model Product {
   category        Category        @relation(fields: [categoryId], references: [id])
   categoryId      Int
   createdAt       TimestamptzString @default(now())
-  updatedAt       temporal.updatedAtString()
-
+  updatedAt       DateTime(as: string) @onCreate(now()) @onUpdate(now())
   stockMovements  StockMovement[]
   saleItems       SaleItem[]
+  @@check(expression: sql`"stockQuantity" >= 0 AND "reorderLevel" >= 0 AND "costPrice" >= 0 AND "sellingPrice" >= 0`, name: "product_nonnegative_values")
 }
 
 model StockMovement {
@@ -77,6 +76,7 @@ model StockMovement {
   user          User              @relation(fields: [userId], references: [id])
   userId        Int
   createdAt     TimestamptzString @default(now())
+  @@check(expression: sql`"quantity" > 0 AND "quantityAfter" >= 0`, name: "stock_movement_valid_quantities")
 }
 
 model Sale {
@@ -91,7 +91,8 @@ model Sale {
   soldById      Int
   items         SaleItem[]
   createdAt     TimestamptzString @default(now())
-  updatedAt     temporal.updatedAtString()
+  updatedAt     DateTime(as: string) @onCreate(now()) @onUpdate(now())
+  @@check(expression: sql`"subtotal" >= 0 AND "discount" >= 0 AND "total" >= 0 AND "discount" <= "subtotal"`, name: "sale_valid_amounts")
 }
 
 model SaleItem {
@@ -104,4 +105,5 @@ model SaleItem {
   unitPrice         Decimal
   unitCost          Decimal
   lineTotal         Decimal
+  @@check(expression: sql`"quantity" > 0 AND "unitPrice" >= 0 AND "unitCost" >= 0 AND "lineTotal" >= 0`, name: "sale_item_valid_values")
 }
