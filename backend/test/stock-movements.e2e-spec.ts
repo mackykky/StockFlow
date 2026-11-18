@@ -16,24 +16,6 @@ describe('Stock Movements (e2e)', () => {
 
   const testId = randomUUID().slice(0, 8);
 
-  const accounts = [
-    {
-      role: 'ADMIN',
-      email: 'dev@stockflow.local',
-      passwordVariable: 'E2E_ADMIN_PASSWORD',
-    },
-    {
-      role: 'MANAGER',
-      email: 'manager.test@stockflow.local',
-      passwordVariable: 'E2E_MANAGER_PASSWORD',
-    },
-    {
-      role: 'STAFF',
-      email: 'staff.test@stockflow.local',
-      passwordVariable: 'E2E_STAFF_PASSWORD',
-    },
-  ] as const;
-
   const loginAs = async (
     email: string,
     passwordVariable: string,

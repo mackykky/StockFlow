@@ -64,6 +64,8 @@ model Product {
 
   stockMovements  StockMovement[]
   saleItems       SaleItem[]
+
+@@check(expression: "\"stockQuantity\" >= 0 AND \"reorderLevel\" >= 0 AND \"costPrice\" >= 0 AND \"sellingPrice\" >= 0", name: "product_nonnegative_values")
 }
 
 model StockMovement {
@@ -77,6 +79,8 @@ model StockMovement {
   user          User              @relation(fields: [userId], references: [id])
   userId        Int
   createdAt     TimestamptzString @default(now())
+
+@@check(expression: "\"quantity\" > 0 AND \"quantityAfter\" >= 0", name: "stock_movement_valid_quantities")
 }
 
 model Sale {
@@ -92,6 +96,8 @@ model Sale {
   items         SaleItem[]
   createdAt     TimestamptzString @default(now())
   updatedAt     temporal.updatedAtString()
+
+@@check(expression: "\"subtotal\" >= 0 AND \"discount\" >= 0 AND \"total\" >= 0 AND \"discount\" <= \"subtotal\"", name: "sale_valid_amounts")
 }
 
 model SaleItem {
@@ -104,4 +110,6 @@ model SaleItem {
   unitPrice         Decimal
   unitCost          Decimal
   lineTotal         Decimal
+
+@@check(expression: "\"quantity\" > 0 AND \"unitPrice\" >= 0 AND \"unitCost\" >= 0 AND \"lineTotal\" >= 0", name: "sale_item_valid_values")
 }

@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CategoriesController } from './categories.controller.js';
-import { DatabaseService } from '../database/database.service.js';
 import { CategoriesService } from './categories.service.js';
 
 describe('CategoriesController', () => {

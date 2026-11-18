@@ -1,0 +1,170 @@
+[
+  {
+    "id": "checkConstraint.Product.product_nonnegative_values_6d80862f",
+    "label": "Add check constraint \"product_nonnegative_values_6d80862f\" on \"Product\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "product_nonnegative_values_6d80862f",
+        "table": "Product"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"product_nonnegative_values_6d80862f\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "product_nonnegative_values_6d80862f",
+          "public",
+          "\"public\".\"Product\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"product_nonnegative_values_6d80862f\"",
+        "sql": "ALTER TABLE \"public\".\"Product\" ADD CONSTRAINT \"product_nonnegative_values_6d80862f\" CHECK (\"stockQuantity\" >= 0 AND \"reorderLevel\" >= 0 AND \"costPrice\" >= 0 AND \"sellingPrice\" >= 0)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"product_nonnegative_values_6d80862f\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "product_nonnegative_values_6d80862f",
+          "public",
+          "\"public\".\"Product\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.Sale.sale_valid_amounts_c0b51f2d",
+    "label": "Add check constraint \"sale_valid_amounts_c0b51f2d\" on \"Sale\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "sale_valid_amounts_c0b51f2d",
+        "table": "Sale"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_valid_amounts_c0b51f2d\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_valid_amounts_c0b51f2d",
+          "public",
+          "\"public\".\"Sale\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"sale_valid_amounts_c0b51f2d\"",
+        "sql": "ALTER TABLE \"public\".\"Sale\" ADD CONSTRAINT \"sale_valid_amounts_c0b51f2d\" CHECK (\"subtotal\" >= 0 AND \"discount\" >= 0 AND \"total\" >= 0 AND \"discount\" <= \"subtotal\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_valid_amounts_c0b51f2d\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_valid_amounts_c0b51f2d",
+          "public",
+          "\"public\".\"Sale\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.SaleItem.sale_item_valid_values_faa17784",
+    "label": "Add check constraint \"sale_item_valid_values_faa17784\" on \"SaleItem\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "sale_item_valid_values_faa17784",
+        "table": "SaleItem"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"sale_item_valid_values_faa17784\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_item_valid_values_faa17784",
+          "public",
+          "\"public\".\"SaleItem\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"sale_item_valid_values_faa17784\"",
+        "sql": "ALTER TABLE \"public\".\"SaleItem\" ADD CONSTRAINT \"sale_item_valid_values_faa17784\" CHECK (\"quantity\" > 0 AND \"unitPrice\" >= 0 AND \"unitCost\" >= 0 AND \"lineTotal\" >= 0)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"sale_item_valid_values_faa17784\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "sale_item_valid_values_faa17784",
+          "public",
+          "\"public\".\"SaleItem\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.StockMovement.stock_movement_valid_quantities_accc3449",
+    "label": "Add check constraint \"stock_movement_valid_quantities_accc3449\" on \"StockMovement\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "stock_movement_valid_quantities_accc3449",
+        "table": "StockMovement"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"stock_movement_valid_quantities_accc3449\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_valid_quantities_accc3449",
+          "public",
+          "\"public\".\"StockMovement\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"stock_movement_valid_quantities_accc3449\"",
+        "sql": "ALTER TABLE \"public\".\"StockMovement\" ADD CONSTRAINT \"stock_movement_valid_quantities_accc3449\" CHECK (\"quantity\" > 0 AND \"quantityAfter\" >= 0)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"stock_movement_valid_quantities_accc3449\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "stock_movement_valid_quantities_accc3449",
+          "public",
+          "\"public\".\"StockMovement\""
+        ]
+      }
+    ]
+  }
+]
