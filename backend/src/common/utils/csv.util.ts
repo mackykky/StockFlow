@@ -7,6 +7,8 @@ export function toCsv(
 
     // Prevent spreadsheet formula injection in untrusted text.
     // Numeric values are not modified.
+    // Intentional: detect formula prefixes after whitespace and control characters.
+    // eslint-disable-next-line no-control-regex
     if (typeof value === 'string' && /^[\s\u0000-\u001F]*[=+\-@]/u.test(text)) {
       text = `'${text}`;
     }

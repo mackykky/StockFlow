@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProductsController } from './products.controller.js';
 import { ProductsService } from './products.service.js';
-import { DatabaseService } from '../database/database.service.js';
 
 describe('ProductsController', () => {
   let controller: ProductsController;
