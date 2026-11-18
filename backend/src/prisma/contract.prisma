@@ -1,0 +1,107 @@
+
+ // use prisma-8
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum StockMovementType {
+  OPENING_STOCK
+  PURCHASE
+  SALE
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  RETURN_IN
+  RETURN_OUT
+}
+
+enum SaleStatus {
+  COMPLETED
+  VOIDED
+}
+
+model User {
+  id             Int             @id @default(autoincrement())
+  email          String          @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  role           UserRole        @default(STAFF)
+  isActive       Boolean         @default(true)
+  createdAt      TimestamptzString @default(now())
+  updatedAt      temporal.updatedAtString()
+
+  stockMovements StockMovement[]
+  sales          Sale[]
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   TimestamptzString @default(now())
+  updatedAt   temporal.updatedAtString()
+  products    Product[]
+}
+
+model Product {
+  id              Int             @id @default(autoincrement())
+  sku             String          @unique
+  name            String
+  description     String?
+  costPrice       Decimal
+  sellingPrice    Decimal
+  stockQuantity   Int             @default(0)
+  reorderLevel    Int             @default(10)
+  isActive        Boolean         @default(true)
+  category        Category        @relation(fields: [categoryId], references: [id])
+  categoryId      Int
+  createdAt       TimestamptzString @default(now())
+  updatedAt       temporal.updatedAtString()
+
+  stockMovements  StockMovement[]
+  saleItems       SaleItem[]
+}
+
+model StockMovement {
+  id            Int               @id @default(autoincrement())
+  type          StockMovementType
+  quantity      Int
+  quantityAfter Int
+  notes         String?
+  product       Product           @relation(fields: [productId], references: [id])
+  productId     Int
+  user          User              @relation(fields: [userId], references: [id])
+  userId        Int
+  createdAt     TimestamptzString @default(now())
+}
+
+model Sale {
+  id            Int        @id @default(autoincrement())
+  saleNumber    String     @unique
+  status        SaleStatus @default(COMPLETED)
+  subtotal      Decimal
+  discount      Decimal    @default(0)
+  total         Decimal
+  notes         String?
+  soldBy        User       @relation(fields: [soldById], references: [id])
+  soldById      Int
+  items         SaleItem[]
+  createdAt     TimestamptzString @default(now())
+  updatedAt     temporal.updatedAtString()
+}
+
+model SaleItem {
+  id                Int     @id @default(autoincrement())
+  sale              Sale    @relation(fields: [saleId], references: [id])
+  saleId            Int
+  product           Product @relation(fields: [productId], references: [id])
+  productId         Int
+  quantity          Int
+  unitPrice         Decimal
+  unitCost          Decimal
+  lineTotal         Decimal
+}
