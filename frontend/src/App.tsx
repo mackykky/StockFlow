@@ -5,22 +5,14 @@ import ModulePlaceholder from './components/ui/ModulePlaceholder';
 import AuthProvider from './features/auth/AuthProvider';
 import LoginPage from './features/auth/LoginPage';
 import ProtectedRoute from './routes/ProtectedRoute';
+import ProductsPage from './features/products/ProductsPage';
+import CategoriesPage from './features/categories/CategoriesPage';
 
 const modules = [
   {
     path: 'dashboard',
     title: 'Dashboard',
     description: 'Sales summaries, inventory metrics, and low-stock alerts.',
-  },
-  {
-    path: 'products',
-    title: 'Products',
-    description: 'Manage product information, pricing, and product availability.',
-  },
-  {
-    path: 'categories',
-    title: 'Categories',
-    description: 'Organize products into searchable inventory categories.',
   },
   {
     path: 'inventory',
@@ -50,6 +42,8 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="products" element={<ProductsPage />} />
+              <Route path="categories" element={<CategoriesPage />} />
 
               {modules.map(({ path, title, description }) => (
                 <Route
