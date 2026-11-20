@@ -12,6 +12,25 @@ import { UpdateCategoryDto } from './dto/update-category.dto.js';
 export class CategoriesService {
   constructor(private readonly databaseService: DatabaseService) {}
 
+
+private async findCategoryByName(
+  name: string,
+  excludeId?: number,
+) {
+  const normalizedName = name.trim().toLowerCase();
+
+  const categories = await this.databaseService.db.orm.public.Category
+    .where({})
+    .all();
+
+  return categories.find(
+    (category) =>
+      category.id !== excludeId &&
+      category.name.trim().toLowerCase() === normalizedName,
+  );
+}
+
+
   async create(createCategoryDto: CreateCategoryDto) {
     const name = createCategoryDto.name.trim();
 
@@ -19,9 +38,8 @@ export class CategoriesService {
       throw new ConflictException('Category name cannot be empty.');
     }
 
-    const existingCategory = await this.databaseService.db.orm.public.Category
-      .where({ name })
-      .first();
+    const existingCategory = await this.findCategoryByName(name);
+      
 
     if (existingCategory) {
       throw new ConflictException('A category with this name already exists.');
@@ -62,17 +80,17 @@ async update(id: number, updateCategoryDto: UpdateCategoryDto) {
     );
   }
 
-  if (name && name !== existingCategory.name) {
-    const duplicate = await this.databaseService.db.orm.public.Category
-      .where({ name })
-      .first();
+  
+if (name !== undefined) {
+  const duplicate = await this.findCategoryByName(name, id);
 
-    if (duplicate) {
-      throw new ConflictException(
-        'A category with this name already exists.',
-      );
-    }
+  if (duplicate) {
+    throw new ConflictException(
+      'A category with this name already exists.',
+    );
   }
+}
+
 
   const updatedCategory = await this.databaseService.db.orm.public.Category
     .where({ id })
