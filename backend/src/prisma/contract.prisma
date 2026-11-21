@@ -44,6 +44,7 @@ model Category {
   createdAt   TimestamptzString @default(now())
   updatedAt   DateTime(as: string) @onCreate(now()) @onUpdate(now())
   products    Product[]
+  @@index(expression: sql`lower(btrim(name))`, unique: true, name: "category_name_normalized_unique")
 }
 
 model Product {

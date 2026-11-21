@@ -12,24 +12,32 @@ import { UpdateCategoryDto } from './dto/update-category.dto.js';
 export class CategoriesService {
   constructor(private readonly databaseService: DatabaseService) {}
 
+  private rethrowCategoryWriteError(error: unknown): never {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'sqlState' in error &&
+      error.sqlState === '23505'
+    ) {
+      throw new ConflictException('A category with this name already exists.');
+    }
 
-private async findCategoryByName(
-  name: string,
-  excludeId?: number,
-) {
-  const normalizedName = name.trim().toLowerCase();
+    throw error;
+  }
 
-  const categories = await this.databaseService.db.orm.public.Category
-    .where({})
-    .all();
+  private async findCategoryByName(name: string, excludeId?: number) {
+    const normalizedName = name.trim().toLowerCase();
 
-  return categories.find(
-    (category) =>
-      category.id !== excludeId &&
-      category.name.trim().toLowerCase() === normalizedName,
-  );
-}
+    const categories = await this.databaseService.db.orm.public.Category.where(
+      {},
+    ).all();
 
+    return categories.find(
+      (category) =>
+        category.id !== excludeId &&
+        category.name.trim().toLowerCase() === normalizedName,
+    );
+  }
 
   async create(createCategoryDto: CreateCategoryDto) {
     const name = createCategoryDto.name.trim();
@@ -39,87 +47,98 @@ private async findCategoryByName(
     }
 
     const existingCategory = await this.findCategoryByName(name);
-      
 
     if (existingCategory) {
       throw new ConflictException('A category with this name already exists.');
     }
 
-    return this.databaseService.db.orm.public.Category.create({
-      name,
-      description: createCategoryDto.description?.trim() || null,
-    });
+    try {
+      return await this.databaseService.db.orm.public.Category.create({
+        name,
+        description: createCategoryDto.description?.trim() || null,
+      });
+    } catch (error) {
+      this.rethrowCategoryWriteError(error);
+    }
   }
   async findAll() {
-  return this.databaseService.db.orm.public.Category
-    .where({})
-    .all();
-}
-async findOne(id: number) {
-  const category = await this.databaseService.db.orm.public.Category
-    .where({ id })
-    .first();
+    return this.databaseService.db.orm.public.Category.where({}).all();
+  }
+  async findOne(id: number) {
+    const category = await this.databaseService.db.orm.public.Category.where({
+      id,
+    }).first();
 
-  if (!category) {
-    throw new NotFoundException(`Category with ID ${id} not found.`);
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found.`);
+    }
+
+    return category;
   }
 
-  return category;
-}
+  async update(id: number, updateCategoryDto: UpdateCategoryDto) {
+    await this.findOne(id);
 
+    const name = updateCategoryDto.name?.trim();
+    const description = updateCategoryDto.description?.trim();
 
-async update(id: number, updateCategoryDto: UpdateCategoryDto) {
-  const existingCategory = await this.findOne(id);
+    if (name !== undefined && !name) {
+      throw new BadRequestException('Category name cannot be empty.');
+    }
 
-  const name = updateCategoryDto.name?.trim();
-  const description = updateCategoryDto.description?.trim();
+    if (name !== undefined) {
+      const duplicate = await this.findCategoryByName(name, id);
 
-  if (name !== undefined && !name) {
-    throw new BadRequestException(
-      'Category name cannot be empty.',
-    );
+      if (duplicate) {
+        throw new ConflictException(
+          'A category with this name already exists.',
+        );
+      }
+    }
+
+    let updatedCategory;
+
+    try {
+      updatedCategory = await this.databaseService.db.orm.public.Category.where(
+        { id },
+      ).update({
+        ...(name !== undefined ? { name } : {}),
+        ...(description !== undefined
+          ? { description: description || null }
+          : {}),
+      });
+    } catch (error) {
+      this.rethrowCategoryWriteError(error);
+    }
+
+    if (!updatedCategory) {
+      throw new NotFoundException(`Category with ID ${id} not found.`);
+    }
+
+    return updatedCategory;
   }
 
-  
-if (name !== undefined) {
-  const duplicate = await this.findCategoryByName(name, id);
+  async deactivate(id: number) {
+    const category = await this.findOne(id);
 
-  if (duplicate) {
-    throw new ConflictException(
-      'A category with this name already exists.',
-    );
-  }
-}
+    if (!category.isActive) {
+      throw new BadRequestException('Category is already inactive.');
+    }
 
-
-  const updatedCategory = await this.databaseService.db.orm.public.Category
-    .where({ id })
-    .update({
-      ...(name !== undefined ? { name } : {}),
-      ...(description !== undefined
-        ? { description: description || null }
-        : {}),
+    return this.databaseService.db.orm.public.Category.where({ id }).update({
+      isActive: false,
     });
-
-  if (!updatedCategory) {
-    throw new NotFoundException(`Category with ID ${id} not found.`);
   }
 
-  return updatedCategory;
-}
+  async activate(id: number) {
+    const category = await this.findOne(id);
 
-async deactivate(id: number) {
-  const category = await this.findOne(id);
+    if (category.isActive) {
+      throw new BadRequestException('Category is already active.');
+    }
 
-  if (!category.isActive) {
-    throw new BadRequestException(
-      'Category is already inactive.',
-    );
+    return this.databaseService.db.orm.public.Category.where({ id }).update({
+      isActive: true,
+    });
   }
-
-  return this.databaseService.db.orm.public.Category
-    .where({ id })
-    .update({ isActive: false });
-}
-
 }
