@@ -299,4 +299,78 @@ describe('CategoriesService', () => {
 
     expect(result).toEqual(updatedCategory);
   });
+
+  it('should activate an inactive category', async () => {
+    categoryFirst.mockResolvedValueOnce({
+      id: 1,
+      name: 'General',
+      isActive: false,
+    });
+
+    const activatedCategory = {
+      id: 1,
+      name: 'General',
+      isActive: true,
+    };
+
+    categoryUpdate.mockResolvedValueOnce(activatedCategory);
+
+    const result = await service.activate(1);
+
+    expect(categoryUpdate).toHaveBeenCalledWith({
+      isActive: true,
+    });
+
+    expect(result).toEqual(activatedCategory);
+  });
+
+  it('should reject activating an already active category', async () => {
+    categoryFirst.mockResolvedValueOnce({
+      id: 1,
+      name: 'General',
+      isActive: true,
+    });
+
+    await expect(service.activate(1)).rejects.toThrow(BadRequestException);
+
+    expect(categoryUpdate).not.toHaveBeenCalled();
+  });
+
+  it('should reject activating a nonexistent category', async () => {
+    categoryFirst.mockResolvedValueOnce(null);
+
+    await expect(service.activate(999)).rejects.toThrow(NotFoundException);
+
+    expect(categoryUpdate).not.toHaveBeenCalled();
+  });
+
+  it('should translate a database unique violation during creation into ConflictException', async () => {
+    categoryAll.mockResolvedValueOnce([]);
+
+    categoryCreate.mockRejectedValueOnce({
+      sqlState: '23505',
+    });
+
+    await expect(service.create({ name: 'General' })).rejects.toThrow(
+      ConflictException,
+    );
+  });
+
+  it('should translate a database unique violation during update into ConflictException', async () => {
+    categoryFirst.mockResolvedValueOnce({
+      id: 1,
+      name: 'General',
+      isActive: true,
+    });
+
+    categoryAll.mockResolvedValueOnce([]);
+
+    categoryUpdate.mockRejectedValueOnce({
+      sqlState: '23505',
+    });
+
+    await expect(service.update(1, { name: 'Electronics' })).rejects.toThrow(
+      ConflictException,
+    );
+  });
 });

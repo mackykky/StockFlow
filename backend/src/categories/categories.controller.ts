@@ -18,9 +18,7 @@ import { Roles } from '../auth/decorators/roles/roles.js';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('categories')
 export class CategoriesController {
-  constructor(
-    private readonly categoriesService: CategoriesService,
-  ) {}
+  constructor(private readonly categoriesService: CategoriesService) {}
 
   @Post()
   @Roles('ADMIN', 'MANAGER')
@@ -51,5 +49,11 @@ export class CategoriesController {
   @Roles('ADMIN')
   deactivate(@Param('id', ParseIntPipe) id: number) {
     return this.categoriesService.deactivate(id);
+  }
+
+  @Patch(':id/activate')
+  @Roles('ADMIN')
+  activate(@Param('id', ParseIntPipe) id: number) {
+    return this.categoriesService.activate(id);
   }
 }
