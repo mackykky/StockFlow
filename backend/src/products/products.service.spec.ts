@@ -1,4 +1,3 @@
-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
@@ -44,6 +43,14 @@ describe('ProductsService', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
 
+    productFirst.mockReset();
+    productAll.mockReset();
+    productUpdate.mockReset();
+    productCreate.mockReset();
+    categoryFirst.mockReset();
+
+    productAll.mockResolvedValue([]);
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProductsService,
@@ -62,7 +69,6 @@ describe('ProductsService', () => {
   });
 
   it('should create a product with trimmed values', async () => {
-    productFirst.mockResolvedValueOnce(null);
     categoryFirst.mockResolvedValueOnce({
       id: 1,
       name: 'Accessories',
@@ -102,11 +108,13 @@ describe('ProductsService', () => {
   });
 
   it('should reject a product with a duplicate SKU', async () => {
-    productFirst.mockResolvedValueOnce({
-      id: 1,
-      sku: 'SF-1001',
-      name: 'Existing Mouse',
-    });
+    productAll.mockResolvedValueOnce([
+      {
+        id: 1,
+        sku: 'SF-1001',
+        name: 'Existing Mouse',
+      },
+    ]);
 
     await expect(
       service.create({
@@ -123,7 +131,6 @@ describe('ProductsService', () => {
   });
 
   it('should reject a product with an inactive category', async () => {
-    productFirst.mockResolvedValueOnce(null);
     categoryFirst.mockResolvedValueOnce({
       id: 1,
       name: 'Accessories',
@@ -157,9 +164,7 @@ describe('ProductsService', () => {
   it('should throw when a product does not exist', async () => {
     productFirst.mockResolvedValueOnce(null);
 
-    await expect(service.findOne(999)).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
   });
 
   it('should update a product name', async () => {
@@ -188,6 +193,141 @@ describe('ProductsService', () => {
     });
 
     expect(result).toEqual(updatedProduct);
+  });
+
+  it('should reject creating a product with a duplicate SKU regardless of case', async () => {
+    productAll.mockResolvedValueOnce([
+      {
+        id: 1,
+        sku: 'PROD-001',
+        name: 'Existing Product',
+      },
+    ]);
+
+    await expect(
+      service.create({
+        sku: 'prod-001',
+        name: 'Duplicate Product',
+        costPrice: 100,
+        sellingPrice: 150,
+        categoryId: 1,
+      }),
+    ).rejects.toThrow(ConflictException);
+
+    expect(categoryFirst).not.toHaveBeenCalled();
+    expect(productCreate).not.toHaveBeenCalled();
+  });
+
+  it('should reject updating a product to another product SKU regardless of case', async () => {
+    productFirst.mockResolvedValueOnce({
+      id: 2,
+      sku: 'PROD-002',
+      name: 'Second Product',
+      isActive: true,
+    });
+
+    productAll.mockResolvedValueOnce([
+      {
+        id: 1,
+        sku: 'PROD-001',
+        name: 'First Product',
+      },
+      {
+        id: 2,
+        sku: 'PROD-002',
+        name: 'Second Product',
+      },
+    ]);
+
+    await expect(
+      service.update(2, {
+        sku: 'prod-001',
+      }),
+    ).rejects.toThrow(ConflictException);
+
+    expect(productUpdate).not.toHaveBeenCalled();
+  });
+
+  it('should allow changing the capitalization of the same product SKU', async () => {
+    productFirst.mockResolvedValueOnce({
+      id: 1,
+      sku: 'PROD-001',
+      name: 'Existing Product',
+      isActive: true,
+    });
+
+    productAll.mockResolvedValueOnce([
+      {
+        id: 1,
+        sku: 'PROD-001',
+        name: 'Existing Product',
+      },
+    ]);
+
+    const updatedProduct = {
+      id: 1,
+      sku: 'prod-001',
+      name: 'Existing Product',
+      isActive: true,
+    };
+
+    productUpdate.mockResolvedValueOnce(updatedProduct);
+
+    const result = await service.update(1, {
+      sku: 'prod-001',
+    });
+
+    expect(productUpdate).toHaveBeenCalledWith({
+      sku: 'prod-001',
+    });
+
+    expect(result).toEqual(updatedProduct);
+  });
+
+  it('should allow creating a product with a unique SKU', async () => {
+    productAll.mockResolvedValueOnce([
+      {
+        id: 1,
+        sku: 'PROD-001',
+        name: 'Existing Product',
+      },
+    ]);
+
+    categoryFirst.mockResolvedValueOnce({
+      id: 1,
+      name: 'Accessories',
+      isActive: true,
+    });
+
+    const createdProduct = {
+      id: 2,
+      sku: 'PROD-002',
+      name: 'New Product',
+      costPrice: '100',
+      sellingPrice: '150',
+      categoryId: 1,
+    };
+
+    productCreate.mockResolvedValueOnce(createdProduct);
+
+    const result = await service.create({
+      sku: 'PROD-002',
+      name: 'New Product',
+      costPrice: 100,
+      sellingPrice: 150,
+      categoryId: 1,
+    });
+
+    expect(productCreate).toHaveBeenCalledWith({
+      sku: 'PROD-002',
+      name: 'New Product',
+      description: null,
+      costPrice: '100',
+      sellingPrice: '150',
+      categoryId: 1,
+    });
+
+    expect(result).toEqual(createdProduct);
   });
 
   it('should deactivate an active product', async () => {
@@ -223,10 +363,55 @@ describe('ProductsService', () => {
       isActive: false,
     });
 
-    await expect(service.deactivate(1)).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(service.deactivate(1)).rejects.toThrow(BadRequestException);
 
     expect(productUpdate).not.toHaveBeenCalled();
+  });
+
+  it('should return ConflictException when PostgreSQL rejects a duplicate SKU during creation', async () => {
+    categoryFirst.mockResolvedValueOnce({
+      id: 1,
+      name: 'Accessories',
+      isActive: true,
+    });
+
+    productCreate.mockRejectedValueOnce({
+      sqlState: '23505',
+      message: 'duplicate key value violates unique constraint',
+    });
+
+    await expect(
+      service.create({
+        sku: 'PROD-001',
+        name: 'Duplicate Product',
+        costPrice: 100,
+        sellingPrice: 150,
+        categoryId: 1,
+      }),
+    ).rejects.toThrow(ConflictException);
+
+    expect(productCreate).toHaveBeenCalledOnce();
+  });
+
+  it('should return ConflictException when PostgreSQL rejects a duplicate SKU during update', async () => {
+    productFirst.mockResolvedValueOnce({
+      id: 2,
+      sku: 'PROD-002',
+      name: 'Existing Product',
+      isActive: true,
+    });
+
+    productUpdate.mockRejectedValueOnce({
+      sqlState: '23505',
+      message: 'duplicate key value violates unique constraint',
+    });
+
+    await expect(
+      service.update(2, {
+        sku: 'PROD-001',
+      }),
+    ).rejects.toThrow(ConflictException);
+
+    expect(productUpdate).toHaveBeenCalledOnce();
   });
 });

@@ -949,7 +949,14 @@
                 }
               },
               "foreignKeys": [],
-              "indexes": [],
+              "indexes": [
+                {
+                  "expression": "lower(btrim(name))",
+                  "name": "category_name_normalized_unique_1252e4ff",
+                  "prefix": "category_name_normalized_unique",
+                  "unique": true
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -1082,6 +1089,12 @@
                   "name": "Product_categoryId_idx_15c304f2",
                   "prefix": "Product_categoryId_idx",
                   "unique": false
+                },
+                {
+                  "expression": "lower(btrim(sku))",
+                  "name": "product_sku_normalized_unique_3047adec",
+                  "prefix": "product_sku_normalized_unique",
+                  "unique": true
                 }
               ],
               "primaryKey": {
@@ -1603,7 +1616,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "f2a16f9174cd2e1457ed97bab6f5cc78b8df29f593e30bd674781ee08fb3dc5f"
+    "storageHash": "a9671c81d9b6c832d2016b37dd5b7a0ab516398c53772e172fef9e47359f97e4"
   },
   "execution": {
     "executionHash": "13ea6d682b3acca6cdcd391381b97485697bfb5691d4963d4136b2abe32d86b6",

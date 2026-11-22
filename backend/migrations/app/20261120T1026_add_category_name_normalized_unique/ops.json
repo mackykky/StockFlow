@@ -1,0 +1,49 @@
+[
+  {
+    "id": "index.Category.category_name_normalized_unique_1252e4ff",
+    "label": "Create index \"category_name_normalized_unique_1252e4ff\" on \"Category\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "category_name_normalized_unique_1252e4ff",
+        "table": "Category"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"category_name_normalized_unique_1252e4ff\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"category_name_normalized_unique_1252e4ff\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"category_name_normalized_unique_1252e4ff\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"category_name_normalized_unique_1252e4ff\"",
+        "sql": "CREATE UNIQUE INDEX \"category_name_normalized_unique_1252e4ff\" ON \"public\".\"Category\" (lower(btrim(name)))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"category_name_normalized_unique_1252e4ff\" exists on \"Category\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND \"i\".\"indisunique\" AND \"m\".\"amname\" = $5 AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"category_name_normalized_unique_1252e4ff\"",
+          "i",
+          "I",
+          "\"public\".\"Category\"",
+          "btree"
+        ]
+      }
+    ]
+  }
+]
