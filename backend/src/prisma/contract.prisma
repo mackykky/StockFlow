@@ -64,6 +64,7 @@ model Product {
   stockMovements  StockMovement[]
   saleItems       SaleItem[]
   @@check(expression: sql`"stockQuantity" >= 0 AND "reorderLevel" >= 0 AND "costPrice" >= 0 AND "sellingPrice" >= 0`, name: "product_nonnegative_values")
+  @@index(expression: sql`lower(btrim(sku))`, unique: true, name: "product_sku_normalized_unique")
 }
 
 model StockMovement {
