@@ -12,6 +12,33 @@ import { UpdateProductDto } from './dto/update-product.dto.js';
 export class ProductsService {
   constructor(private readonly databaseService: DatabaseService) {}
 
+  private rethrowProductWriteError(error: unknown): never {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'sqlState' in error &&
+      error.sqlState === '23505'
+    ) {
+      throw new ConflictException('A product with this SKU already exists.');
+    }
+
+    throw error;
+  }
+
+  private async findProductBySku(sku: string, excludeId?: number) {
+    const normalizedSku = sku.trim().toLowerCase();
+
+    const products = await this.databaseService.db.orm.public.Product.where(
+      {},
+    ).all();
+
+    return products.find(
+      (product) =>
+        product.id !== excludeId &&
+        product.sku.trim().toLowerCase() === normalizedSku,
+    );
+  }
+
   async create(dto: CreateProductDto) {
     const sku = dto.sku.trim();
     const name = dto.name.trim();
@@ -20,17 +47,15 @@ export class ProductsService {
       throw new BadRequestException('SKU and product name cannot be empty.');
     }
 
-    const existingProduct = await this.databaseService.db.orm.public.Product
-      .where({ sku })
-      .first();
+    const existingProduct = await this.findProductBySku(sku);
 
     if (existingProduct) {
       throw new ConflictException('A product with this SKU already exists.');
     }
 
-    const category = await this.databaseService.db.orm.public.Category
-      .where({ id: dto.categoryId })
-      .first();
+    const category = await this.databaseService.db.orm.public.Category.where({
+      id: dto.categoryId,
+    }).first();
 
     if (!category || !category.isActive) {
       throw new BadRequestException(
@@ -38,17 +63,21 @@ export class ProductsService {
       );
     }
 
-    return this.databaseService.db.orm.public.Product.create({
-      sku,
-      name,
-      description: dto.description?.trim() || null,
-      costPrice: String(dto.costPrice),
-sellingPrice: String(dto.sellingPrice),
-      categoryId: dto.categoryId,
-      ...(dto.reorderLevel !== undefined
-        ? { reorderLevel: dto.reorderLevel }
-        : {}),
-    });
+    try {
+      return await this.databaseService.db.orm.public.Product.create({
+        sku,
+        name,
+        description: dto.description?.trim() || null,
+        costPrice: String(dto.costPrice),
+        sellingPrice: String(dto.sellingPrice),
+        categoryId: dto.categoryId,
+        ...(dto.reorderLevel !== undefined
+          ? { reorderLevel: dto.reorderLevel }
+          : {}),
+      });
+    } catch (error: unknown) {
+      this.rethrowProductWriteError(error);
+    }
   }
 
   async findAll() {
@@ -56,9 +85,9 @@ sellingPrice: String(dto.sellingPrice),
   }
 
   async findOne(id: number) {
-    const product = await this.databaseService.db.orm.public.Product
-      .where({ id })
-      .first();
+    const product = await this.databaseService.db.orm.public.Product.where({
+      id,
+    }).first();
 
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found.`);
@@ -81,10 +110,8 @@ sellingPrice: String(dto.sellingPrice),
       throw new BadRequestException('Product name cannot be empty.');
     }
 
-    if (sku && sku !== existingProduct.sku) {
-      const duplicate = await this.databaseService.db.orm.public.Product
-        .where({ sku })
-        .first();
+    if (sku !== undefined) {
+      const duplicate = await this.findProductBySku(sku, id);
 
       if (duplicate) {
         throw new ConflictException('A product with this SKU already exists.');
@@ -92,9 +119,9 @@ sellingPrice: String(dto.sellingPrice),
     }
 
     if (dto.categoryId !== undefined) {
-      const category = await this.databaseService.db.orm.public.Category
-        .where({ id: dto.categoryId })
-        .first();
+      const category = await this.databaseService.db.orm.public.Category.where({
+        id: dto.categoryId,
+      }).first();
 
       if (!category || !category.isActive) {
         throw new BadRequestException(
@@ -103,27 +130,31 @@ sellingPrice: String(dto.sellingPrice),
       }
     }
 
-    const updatedProduct = await this.databaseService.db.orm.public.Product
-      .where({ id })
-      .update({
+    let updatedProduct;
+
+    try {
+      updatedProduct = await this.databaseService.db.orm.public.Product.where({
+        id,
+      }).update({
         ...(sku !== undefined ? { sku } : {}),
         ...(name !== undefined ? { name } : {}),
         ...(dto.description !== undefined
           ? { description: dto.description.trim() || null }
           : {}),
         ...(dto.costPrice !== undefined
-  ? { costPrice: String(dto.costPrice) }
-  : {}),
-...(dto.sellingPrice !== undefined
-  ? { sellingPrice: String(dto.sellingPrice) }
-  : {}),
-        ...(dto.categoryId !== undefined
-          ? { categoryId: dto.categoryId }
+          ? { costPrice: String(dto.costPrice) }
           : {}),
+        ...(dto.sellingPrice !== undefined
+          ? { sellingPrice: String(dto.sellingPrice) }
+          : {}),
+        ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
         ...(dto.reorderLevel !== undefined
           ? { reorderLevel: dto.reorderLevel }
           : {}),
       });
+    } catch (error: unknown) {
+      this.rethrowProductWriteError(error);
+    }
 
     if (!updatedProduct) {
       throw new NotFoundException(`Product with ID ${id} not found.`);
@@ -139,8 +170,8 @@ sellingPrice: String(dto.sellingPrice),
       throw new BadRequestException('Product is already inactive.');
     }
 
-    return this.databaseService.db.orm.public.Product
-      .where({ id })
-      .update({ isActive: false });
+    return this.databaseService.db.orm.public.Product.where({ id }).update({
+      isActive: false,
+    });
   }
 }

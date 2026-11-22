@@ -1,0 +1,49 @@
+[
+  {
+    "id": "index.Product.product_sku_normalized_unique_3047adec",
+    "label": "Create index \"product_sku_normalized_unique_3047adec\" on \"Product\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "product_sku_normalized_unique_3047adec",
+        "table": "Product"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"product_sku_normalized_unique_3047adec\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"product_sku_normalized_unique_3047adec\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"product_sku_normalized_unique_3047adec\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"product_sku_normalized_unique_3047adec\"",
+        "sql": "CREATE UNIQUE INDEX \"product_sku_normalized_unique_3047adec\" ON \"public\".\"Product\" (lower(btrim(sku)))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"product_sku_normalized_unique_3047adec\" exists on \"Product\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND \"i\".\"indisunique\" AND \"m\".\"amname\" = $5 AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"product_sku_normalized_unique_3047adec\"",
+          "i",
+          "I",
+          "\"public\".\"Product\"",
+          "btree"
+        ]
+      }
+    ]
+  }
+]
