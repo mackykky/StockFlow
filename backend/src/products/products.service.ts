@@ -53,27 +53,31 @@ export class ProductsService {
       throw new ConflictException('A product with this SKU already exists.');
     }
 
-    const category = await this.databaseService.db.orm.public.Category.where({
-      id: dto.categoryId,
-    }).first();
-
-    if (!category || !category.isActive) {
-      throw new BadRequestException(
-        'The selected category does not exist or is inactive.',
-      );
-    }
-
     try {
-      return await this.databaseService.db.orm.public.Product.create({
-        sku,
-        name,
-        description: dto.description?.trim() || null,
-        costPrice: String(dto.costPrice),
-        sellingPrice: String(dto.sellingPrice),
-        categoryId: dto.categoryId,
-        ...(dto.reorderLevel !== undefined
-          ? { reorderLevel: dto.reorderLevel }
-          : {}),
+      return await this.databaseService.db.transaction(async (tx) => {
+        const category = await tx.orm.public.Category.where({
+          id: dto.categoryId,
+        })
+          .forUpdate()
+          .first();
+
+        if (!category || !category.isActive) {
+          throw new BadRequestException(
+            'The selected category does not exist or is inactive.',
+          );
+        }
+
+        return await tx.orm.public.Product.create({
+          sku,
+          name,
+          description: dto.description?.trim() || null,
+          costPrice: String(dto.costPrice),
+          sellingPrice: String(dto.sellingPrice),
+          categoryId: dto.categoryId,
+          ...(dto.reorderLevel !== undefined
+            ? { reorderLevel: dto.reorderLevel }
+            : {}),
+        });
       });
     } catch (error: unknown) {
       this.rethrowProductWriteError(error);
@@ -118,39 +122,44 @@ export class ProductsService {
       }
     }
 
-    if (dto.categoryId !== undefined) {
-      const category = await this.databaseService.db.orm.public.Category.where({
-        id: dto.categoryId,
-      }).first();
-
-      if (!category || !category.isActive) {
-        throw new BadRequestException(
-          'The selected category does not exist or is inactive.',
-        );
-      }
-    }
-
     let updatedProduct;
-
     try {
-      updatedProduct = await this.databaseService.db.orm.public.Product.where({
-        id,
-      }).update({
-        ...(sku !== undefined ? { sku } : {}),
-        ...(name !== undefined ? { name } : {}),
-        ...(dto.description !== undefined
-          ? { description: dto.description.trim() || null }
-          : {}),
-        ...(dto.costPrice !== undefined
-          ? { costPrice: String(dto.costPrice) }
-          : {}),
-        ...(dto.sellingPrice !== undefined
-          ? { sellingPrice: String(dto.sellingPrice) }
-          : {}),
-        ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
-        ...(dto.reorderLevel !== undefined
-          ? { reorderLevel: dto.reorderLevel }
-          : {}),
+      updatedProduct = await this.databaseService.db.transaction(async (tx) => {
+        if (dto.categoryId !== undefined) {
+          const category = await tx.orm.public.Category.where({
+            id: dto.categoryId,
+          })
+            .forUpdate()
+            .first();
+
+          if (!category || !category.isActive) {
+            throw new BadRequestException(
+              'The selected category does not exist or is inactive.',
+            );
+          }
+        }
+
+        return await tx.orm.public.Product.where({
+          id,
+        }).update({
+          ...(sku !== undefined ? { sku } : {}),
+          ...(name !== undefined ? { name } : {}),
+          ...(dto.description !== undefined
+            ? { description: dto.description.trim() || null }
+            : {}),
+          ...(dto.costPrice !== undefined
+            ? { costPrice: String(dto.costPrice) }
+            : {}),
+          ...(dto.sellingPrice !== undefined
+            ? { sellingPrice: String(dto.sellingPrice) }
+            : {}),
+          ...(dto.categoryId !== undefined
+            ? { categoryId: dto.categoryId }
+            : {}),
+          ...(dto.reorderLevel !== undefined
+            ? { reorderLevel: dto.reorderLevel }
+            : {}),
+        });
       });
     } catch (error: unknown) {
       this.rethrowProductWriteError(error);
@@ -163,15 +172,50 @@ export class ProductsService {
     return updatedProduct;
   }
 
-  async deactivate(id: number) {
-    const product = await this.findOne(id);
+  deactivate(id: number) {
+    return this.changeStatus(id, 'deactivate');
+  }
 
-    if (!product.isActive) {
-      throw new BadRequestException('Product is already inactive.');
-    }
+  activate(id: number) {
+    return this.changeStatus(id, 'activate');
+  }
 
-    return this.databaseService.db.orm.public.Product.where({ id }).update({
-      isActive: false,
+  archive(id: number) {
+    return this.changeStatus(id, 'archive');
+  }
+
+  restore(id: number) {
+    return this.changeStatus(id, 'restore');
+  }
+
+  private changeStatus(id: number, action: 'activate' | 'deactivate' | 'archive' | 'restore') {
+    return this.databaseService.db.transaction(async (tx) => {
+      const product = await tx.orm.public.Product.where({ id }).forUpdate().first();
+      if (!product) throw new NotFoundException('Product not found.');
+      const archived = !product.isActive && !product.isSuspended;
+      switch (action) {
+        case 'deactivate':
+          if (!product.isActive) throw new BadRequestException('Only active products can be deactivated.');
+          break;
+        case 'activate': {
+          if (archived) throw new ConflictException('Restore the archived product before activating it.');
+          if (product.isActive) throw new BadRequestException('Product is already active.');
+          const category = await tx.orm.public.Category.where({ id: product.categoryId }).forUpdate().first();
+          if (!category?.isActive) throw new ConflictException('Assign an active category before activating this product.');
+          break;
+        }
+        case 'archive':
+          if (archived) throw new BadRequestException('Product is already archived.');
+          if (product.stockQuantity !== 0) throw new ConflictException('Stock must be zero before archiving this product.');
+          break;
+        case 'restore':
+          if (!archived) throw new BadRequestException('Only archived products can be restored.');
+          break;
+      }
+      return tx.orm.public.Product.where({ id }).update({
+        isActive: action === 'activate',
+        isSuspended: action === 'deactivate' || action === 'restore',
+      });
     });
   }
 }

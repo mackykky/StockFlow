@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'a9671c81d9b6c832d2016b37dd5b7a0ab516398c53772e172fef9e47359f97e4'>;
+  StorageHashBase<'6d90a76200e3083bc8affb1df6c8f4d8f422130fa2defaa5d3789a816c550a8a'>;
 export type ExecutionHash =
   ExecutionHashBase<'13ea6d682b3acca6cdcd391381b97485697bfb5691d4963d4136b2abe32d86b6'>;
 export type ProfileHash =
@@ -398,6 +398,7 @@ export namespace Models {
     description: FieldOutputTypes['public']['Product']['description'];
     id: FieldOutputTypes['public']['Product']['id'];
     isActive: FieldOutputTypes['public']['Product']['isActive'];
+    isSuspended: FieldOutputTypes['public']['Product']['isSuspended'];
     name: FieldOutputTypes['public']['Product']['name'];
     reorderLevel: FieldOutputTypes['public']['Product']['reorderLevel'];
     sellingPrice: FieldOutputTypes['public']['Product']['sellingPrice'];
@@ -598,6 +599,16 @@ type ContractBase = Omit<
                   readonly default: {
                     readonly kind: 'literal';
                     readonly value: DefaultLiteralValue<'pg/bool@1', true>;
+                  };
+                  readonly many: false;
+                };
+                readonly isSuspended: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
                   };
                   readonly many: false;
                 };
@@ -1179,6 +1190,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
               };
+              readonly isSuspended: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
               readonly name: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -1253,6 +1268,7 @@ type ContractBase = Omit<
                 readonly description: { readonly column: 'description' };
                 readonly id: { readonly column: 'id' };
                 readonly isActive: { readonly column: 'isActive' };
+                readonly isSuspended: { readonly column: 'isSuspended' };
                 readonly name: { readonly column: 'name' };
                 readonly reorderLevel: { readonly column: 'reorderLevel' };
                 readonly sellingPrice: { readonly column: 'sellingPrice' };

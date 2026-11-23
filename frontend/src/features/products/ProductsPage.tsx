@@ -1,8 +1,10 @@
+import { useSearchParams } from "react-router";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { AlertCircle, Package, Plus, RefreshCw, Search, Pencil } from "lucide-react";
 import { useApi, ApiError } from "../../hooks/useApi";
 import { useAuth } from "../auth/useAuth";
-import type { Product } from "./product.types";
+import { productStatus, type Product } from "./product.types";
+import ProductDetails from "./ProductDetails";
 import type { Category } from "../categories/category.types";
 
 const moneyFormatter = new Intl.NumberFormat("en-PH", {
@@ -42,8 +44,11 @@ export default function ProductsPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [detailId, setDetailId] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [params] = useSearchParams();
+  const [selectedCategory, setSelectedCategory] = useState(params.get("category") ?? "all");
+  const [status, setStatus] = useState("active");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,9 +138,9 @@ export default function ProductsPage() {
         selectedCategory === "all" ||
         String(product.categoryId) === selectedCategory;
 
-      return matchesSearch && matchesCategory;
+      return matchesSearch && matchesCategory && (status === "all" || productStatus(product).toLowerCase() === status);
     });
-  }, [products, search, selectedCategory, categoryById]);
+  }, [products, search, selectedCategory, categoryById, status]);
 
   const lowStockCount = products.filter(
     (product) =>
@@ -182,8 +187,8 @@ async function createProduct() {
     !Number.isFinite(selling) ||
     cost < 0 ||
     selling < 0 ||
-    !Number.isInteger(cost * 100) ||
-    !Number.isInteger(selling * 100)
+    !/^\d+(\.\d{1,2})?$/.test(costPrice.trim()) ||
+    !/^\d+(\.\d{1,2})?$/.test(sellingPrice.trim())
   ) {
     setFormError("Enter valid nonnegative prices with at most two decimal places.");
     return;
@@ -401,6 +406,17 @@ async function updateProduct() {
 
   return (
     <div className="space-y-6">
+      {detailId !== null && (
+        <ProductDetails
+          id={detailId}
+          categoryById={categoryById}
+          canChangeStatus={user?.role === "ADMIN"}
+          onClose={() => setDetailId(null)}
+          onStatusChanged={(updated) =>
+            setProducts((current) => current.map((p) => p.id === updated.id ? updated : p))
+          }
+        />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold">Product Management</h2>
@@ -734,13 +750,13 @@ async function updateProduct() {
               .map((category) => (
                 <option key={category.id} value={String(category.id)}>
                   {category.name}
-                  {!category.isActive ? " (Inactive - Current)" : ""}
+                  {!category.isActive ? " (Archived - Current)" : ""}
                 </option>
               ))}
           </select>
 
           <p className="mt-1 text-xs text-slate-500">
-            Only active categories can be assigned. An existing inactive
+            Only active categories can be assigned. An existing archived
             category may be retained.
           </p>
         </div>
@@ -892,6 +908,10 @@ async function updateProduct() {
             <h3 className="font-semibold">Products</h3>
           </div>
 
+          <select aria-label="Filter products by status" value={status} onChange={e => setStatus(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+            <option value="active">Active</option><option value="inactive">Inactive</option><option value="archived">Archived</option><option value="all">All statuses</option>
+          </select>
           <select
               aria-label="Filter products by category"
               value={selectedCategory}
@@ -903,7 +923,7 @@ async function updateProduct() {
               {categories.map((category) => (
                 <option key={category.id} value={String(category.id)}>
                   {category.name}
-                  {!category.isActive ? " (Inactive)" : ""}
+                  {!category.isActive ? " (Archived)" : ""}
                 </option>
               ))}
             </select>
@@ -944,11 +964,11 @@ async function updateProduct() {
           <div className="p-12 text-center">
             <Package className="mx-auto mb-3 text-slate-400" size={32} />
             <p className="font-medium">
-              {search ? "No matching products" : "No products yet"}
+              {products.length ? "No matching products" : "No products yet"}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              {search
-                ? "Try searching with another name or SKU."
+              {products.length
+                ? "Try a different search, category, or status."
                 : "Products will appear here after they are created."}
             </p>
           </div>
@@ -993,7 +1013,16 @@ async function updateProduct() {
                   return (
                     <tr key={product.id} className="hover:bg-slate-50">
                       <td className="px-5 py-4 font-medium">{product.id}</td>
-                      <td className="px-5 py-4 font-medium">{product.name}</td>
+                      <td className="px-5 py-4 font-medium">
+                        <button
+                          type="button"
+                          aria-label={`View details for ${product.name}`}
+                          className="text-left text-blue-700 underline underline-offset-2"
+                          onClick={() => setDetailId(product.id)}
+                        >
+                          {product.name}
+                        </button>
+                      </td>
                       <td className="px-5 py-4 text-slate-600">
                         {product.sku}
                       </td>
@@ -1026,7 +1055,7 @@ async function updateProduct() {
                               : "bg-slate-100 text-slate-600"
                           }`}
                         >
-                          {product.isActive ? "Active" : "Inactive"}
+                          {productStatus(product)}
                         </span>
                       </td>
                       {canManageProducts && (

@@ -17,20 +17,26 @@ describe('CategoriesService', () => {
   const categoryCreate = vi.fn();
   const categoryUpdate = vi.fn();
 
+  const mockOrm = {
+    public: {
+      Product: { where: () => ({ all: async () => [] }) },
+      Category: {
+        where: vi.fn(() => ({
+          first: categoryFirst,
+          forUpdate: () => ({ first: categoryFirst }),
+          all: categoryAll,
+          update: categoryUpdate,
+        })),
+        create: categoryCreate,
+      },
+    },
+  };
+
   const mockDatabaseService = {
     db: {
-      orm: {
-        public: {
-          Category: {
-            where: vi.fn(() => ({
-              first: categoryFirst,
-              all: categoryAll,
-              update: categoryUpdate,
-            })),
-            create: categoryCreate,
-          },
-        },
-      },
+      transaction: <T>(run: (tx: { orm: typeof mockOrm }) => Promise<T>) =>
+        run({ orm: mockOrm }),
+      orm: mockOrm,
     },
   };
 
@@ -39,6 +45,7 @@ describe('CategoriesService', () => {
 
     mockDatabaseService.db.orm.public.Category.where.mockImplementation(() => ({
       first: categoryFirst,
+      forUpdate: () => ({ first: categoryFirst }),
       all: categoryAll,
       update: categoryUpdate,
     }));

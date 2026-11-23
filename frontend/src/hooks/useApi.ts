@@ -81,6 +81,11 @@ export function useApi() {
         );
       }
 
+      if (response.status === 409) {
+        const details = await response.json().catch(() => null);
+        throw new ApiError(typeof details?.message === "string" ? details.message : "The record has changed. Refresh and try again.", 409);
+      }
+
       if (!response.ok) {
         throw new ApiError(
           `Request failed with status ${response.status}.`,

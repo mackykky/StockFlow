@@ -265,6 +265,40 @@ describe('Products (e2e)', () => {
     expect(response.body.isActive).toBe(false);
   });
 
+  it('protects stock and category assignments through archive and restore', async () => {
+    const api = request(app.getHttpServer());
+    const auth = `Bearer ${adminToken}`;
+    const category = await api.post('/categories').set('Authorization', auth)
+      .send({ name: `Archive test ${testId}` }).expect(201);
+    const product = await createProduct(adminToken, { categoryId: category.body.id }).expect(201);
+    const productUrl = `/products/${product.body.id}`;
+    const categoryUrl = `/categories/${category.body.id}`;
+    const patch = (url: string) => api.patch(url).set('Authorization', auth);
+    const move = (type: string) => api.post('/stock-movements').set('Authorization', auth)
+      .send({ productId: product.body.id, type, quantity: 3 }).expect(201);
+    await move('PURCHASE');
+    await patch(productUrl + '/archive').expect(409);
+    await patch(categoryUrl + '/deactivate').expect(409);
+    const inactive = await patch(productUrl + '/deactivate').expect(200);
+    expect(inactive.body).toMatchObject({ isActive: false, isSuspended: true, stockQuantity: 3 });
+    await api.post('/stock-movements').set('Authorization', auth)
+      .send({ productId: product.body.id, type: 'PURCHASE', quantity: 1 }).expect(400);
+    await patch(productUrl + '/archive').expect(409);
+    await move('ADJUSTMENT_OUT');
+    await patch(productUrl + '/archive').expect(200);
+    await api.post('/stock-movements').set('Authorization', auth)
+      .send({ productId: product.body.id, type: 'RETURN_OUT', quantity: 1 }).expect(400);
+    await patch(categoryUrl + '/deactivate').expect(200);
+    await patch(productUrl + '/activate').expect(409);
+    const restored = await patch(productUrl + '/restore').expect(200);
+    expect(restored.body).toMatchObject({ isActive: false, isSuspended: true, stockQuantity: 0 });
+    await patch(productUrl + '/activate').expect(409);
+    await patch(categoryUrl + '/activate').expect(200);
+    await patch(productUrl + '/activate').expect(200);
+    const history = await api.get('/stock-movements/product/' + product.body.id).set('Authorization', auth).expect(200);
+    expect(history.body).toHaveLength(2);
+  });
+
   it('should deny MANAGER from deactivating a product', async () => {
     const created = await createProduct().expect(201);
 
@@ -272,6 +306,24 @@ describe('Products (e2e)', () => {
       .patch(`/products/${created.body.id}/deactivate`)
       .set('Authorization', `Bearer ${managerToken}`)
       .expect(403);
+  });
+
+  it('allows only an admin to reactivate a product and preserves its data', async () => {
+    const created = await createProduct().expect(201);
+    const url = `/products/${created.body.id}`;
+    const api = request(app.getHttpServer());
+    await api.patch(`${url}/deactivate`).set('Authorization', `Bearer ${adminToken}`).expect(200);
+    for (const token of [managerToken, staffToken]) {
+      await api.patch(`${url}/activate`).set('Authorization', `Bearer ${token}`).expect(403);
+    }
+
+    await api.patch(`${url}/activate`).set('Authorization', `Bearer ${adminToken}`).expect(200);
+    const restored = await api.get(url).set('Authorization', `Bearer ${staffToken}`).expect(200);
+    expect(restored.body).toMatchObject({
+      id: created.body.id, sku: created.body.sku, name: created.body.name,
+      categoryId, stockQuantity: created.body.stockQuantity, isActive: true,
+    });
+    await api.patch(`${url}/activate`).set('Authorization', `Bearer ${adminToken}`).expect(400);
   });
 
   it('should deny STAFF from deactivating a product', async () => {

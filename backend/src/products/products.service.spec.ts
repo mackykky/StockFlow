@@ -18,25 +18,31 @@ describe('ProductsService', () => {
   const productCreate = vi.fn();
   const categoryFirst = vi.fn();
 
+  const mockOrm = {
+    public: {
+      Product: {
+        where: vi.fn(() => ({
+          first: productFirst,
+          forUpdate: () => ({ first: productFirst }),
+          all: productAll,
+          update: productUpdate,
+        })),
+        create: productCreate,
+      },
+      Category: {
+        where: vi.fn(() => ({
+          first: categoryFirst,
+          forUpdate: () => ({ first: categoryFirst }),
+        })),
+      },
+    },
+  };
+
   const mockDatabaseService = {
     db: {
-      orm: {
-        public: {
-          Product: {
-            where: vi.fn(() => ({
-              first: productFirst,
-              all: productAll,
-              update: productUpdate,
-            })),
-            create: productCreate,
-          },
-          Category: {
-            where: vi.fn(() => ({
-              first: categoryFirst,
-            })),
-          },
-        },
-      },
+      transaction: <T>(run: (tx: { orm: typeof mockOrm }) => Promise<T>) =>
+        run({ orm: mockOrm }),
+      orm: mockOrm,
     },
   };
 
@@ -336,6 +342,7 @@ describe('ProductsService', () => {
       sku: 'SF-1001',
       name: 'Wireless Mouse',
       isActive: true,
+      stockQuantity: 0,
     });
 
     productUpdate.mockResolvedValueOnce({
@@ -346,6 +353,7 @@ describe('ProductsService', () => {
     const result = await service.deactivate(1);
 
     expect(productUpdate).toHaveBeenCalledWith({
+      isSuspended: true,
       isActive: false,
     });
 

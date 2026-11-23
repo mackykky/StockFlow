@@ -65,9 +65,9 @@ async create(dto: CreateStockMovementDto, userId: number) {    const isInbound =
         );
       }
 
-      if (!product.isActive) {
+      if (!product.isActive && !(product.isSuspended && isOutbound)) {
         throw new BadRequestException(
-          'Cannot change stock for an inactive product.',
+          product.isSuspended ? 'Inactive products only allow adjustments out and returns out.' : 'Cannot change stock for an archived product.',
         );
       }
 

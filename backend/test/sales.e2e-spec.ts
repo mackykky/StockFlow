@@ -296,8 +296,6 @@ describe('Sales (e2e)', () => {
   it('should reject a sale containing an inactive product', async () => {
     const product = await createProduct().expect(201);
 
-    await createMovement(product.body.id, 10).expect(201);
-
     await request(app.getHttpServer())
       .patch(`/products/${product.body.id}/deactivate`)
       .set('Authorization', `Bearer ${adminToken}`)
@@ -305,7 +303,7 @@ describe('Sales (e2e)', () => {
 
     await createSale([
       { productId: product.body.id, quantity: 1 },
-    ]).expect(400);
+    ]).expect(400).expect(response => expect(response.body.message).toContain('inactive'));
   });
 
   it('should reject duplicate products in the same sale', async () => {

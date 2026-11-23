@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+import type { Product } from "../products/product.types";
 import { useEffect, useMemo, useState, useRef } from "react";
 import {
   AlertCircle,
@@ -45,8 +47,10 @@ export default function CategoriesPage() {
   const [statusError, setStatusError] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
+  const [assignedCounts, setAssignedCounts] = useState<Map<number, number>>(new Map());
+  const assignedCount = assignedCounts.get(confirmationCategory?.id ?? 0) ?? 0;
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -58,9 +62,11 @@ export default function CategoriesPage() {
       setLoading(true);
 
       try {
-        const result = await request<Category[]>("/categories", {
-          signal: controller.signal,
-        });
+        const options = { signal: controller.signal };
+        const [result, products] = await Promise.all([
+          request<Category[]>("/categories", options),
+          canDeactivateCategories ? request<Product[]>("/products", options) : Promise.resolve([]),
+        ]);
 
         if (controller.signal.aborted) return;
 
@@ -68,6 +74,11 @@ export default function CategoriesPage() {
           throw new Error("Unexpected categories response.");
         }
 
+        const counts = new Map<number, number>();
+        for (const p of products) {
+          if (p.isActive) counts.set(p.categoryId, (counts.get(p.categoryId) ?? 0) + 1);
+        }
+        setAssignedCounts(counts);
         setCategories(result);
         setError(null);
       } catch (err) {
@@ -86,7 +97,7 @@ export default function CategoriesPage() {
     void loadCategories();
 
     return () => controller.abort();
-  }, [request, reloadKey]);
+  }, [request, reloadKey, canDeactivateCategories]);
 
   useEffect(() => {
     if (!editingCategory) return;
@@ -260,7 +271,10 @@ export default function CategoriesPage() {
       setConfirmationCategory(null);
       setReloadKey((value) => value + 1);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 400) {
+      if (err instanceof ApiError && err.status === 409) {
+        setStatusError(err.message);
+        setReloadKey(value => value + 1);
+      } else if (err instanceof ApiError && err.status === 400) {
         setStatusError(
           "The category status has already changed. Please refresh the page.",
         );
@@ -328,8 +342,8 @@ export default function CategoriesPage() {
               className="mt-5 text-xl font-semibold text-slate-900"
             >
               {confirmationCategory.isActive
-                ? "Deactivate category?"
-                : "Activate category?"}
+                ? "Archive category?"
+                : "Restore category?"}
             </h2>
 
             <p
@@ -337,7 +351,7 @@ export default function CategoriesPage() {
               className="mt-3 text-sm leading-6 text-slate-600"
             >
               Are you sure you want to{" "}
-              {confirmationCategory.isActive ? "deactivate" : "activate"}{" "}
+              {confirmationCategory.isActive ? "archive" : "restore"}{" "}
               <span className="font-semibold text-slate-900">
                 {confirmationCategory.name}
               </span>
@@ -346,7 +360,7 @@ export default function CategoriesPage() {
 
             <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
               {confirmationCategory.isActive
-                ? "The category will become inactive. Existing products will remain assigned to it, and you can reactivate it later."
+                ? assignedCount > 0 ? <>{assignedCount} active {assignedCount === 1 ? "product uses" : "products use"} this category. <Link className="text-blue-700 underline" to={`/products?category=${confirmationCategory.id}`}>Review and reassign products</Link> before archiving.</> : "This category has no active products. You can restore it later."
                 : "The category will become active again and can be used when assigning categories to new products."}
             </div>
 
@@ -362,7 +376,7 @@ export default function CategoriesPage() {
 
               <button
                 type="button"
-                disabled={statusChangingId !== null}
+                disabled={statusChangingId !== null || (confirmationCategory.isActive && assignedCount > 0)}
                 onClick={() => void changeCategoryStatus()}
                 className={`rounded-lg px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 ${
                   confirmationCategory.isActive
@@ -373,8 +387,8 @@ export default function CategoriesPage() {
                 {statusChangingId !== null
                   ? "Processing..."
                   : confirmationCategory.isActive
-                    ? "Deactivate Category"
-                    : "Activate Category"}
+                    ? "Archive Category"
+                    : "Restore Category"}
               </button>
             </div>
           </div>
@@ -618,7 +632,7 @@ export default function CategoriesPage() {
         {[
           { label: "Total Categories", value: categories.length },
           { label: "Active Categories", value: activeCount },
-          { label: "Inactive Categories", value: inactiveCount },
+          { label: "Archived Categories", value: inactiveCount },
         ].map((metric) => (
           <div
             key={metric.label}
@@ -650,7 +664,7 @@ export default function CategoriesPage() {
             >
               <option value="all">All statuses</option>
               <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="inactive">Archived</option>
             </select>
 
             <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
@@ -743,7 +757,7 @@ export default function CategoriesPage() {
                             : "bg-slate-100 text-slate-600"
                         }`}
                       >
-                        {category.isActive ? "Active" : "Inactive"}
+                        {category.isActive ? "Active" : "Archived"}
                       </span>
                     </td>
 
@@ -773,7 +787,7 @@ export default function CategoriesPage() {
                               disabled={
                                 statusChangingId !== null || updating || saving
                               }
-                              aria-label={`${category.isActive ? "Deactivate" : "Activate"} ${category.name}`}
+                              aria-label={`${category.isActive ? "Archive" : "Restore"} ${category.name}`}
                               className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium disabled:opacity-50 ${
                                 category.isActive
                                   ? "border-red-200 text-red-600 hover:bg-red-50"
@@ -783,12 +797,12 @@ export default function CategoriesPage() {
                               {category.isActive ? (
                                 <>
                                   <Archive size={15} />
-                                  Deactivate
+                                  Archive
                                 </>
                               ) : (
                                 <>
                                   <RotateCcw size={15} />
-                                  Activate
+                                  Restore
                                 </>
                               )}
                             </button>

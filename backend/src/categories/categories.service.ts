@@ -119,14 +119,23 @@ export class CategoriesService {
   }
 
   async deactivate(id: number) {
-    const category = await this.findOne(id);
-
-    if (!category.isActive) {
-      throw new BadRequestException('Category is already inactive.');
-    }
-
-    return this.databaseService.db.orm.public.Category.where({ id }).update({
-      isActive: false,
+    return this.databaseService.db.transaction(async (tx) => {
+      const category = await tx.orm.public.Category.where({ id })
+        .forUpdate()
+        .first();
+      if (!category)
+        throw new NotFoundException(`Category with ID ${id} not found.`);
+      if (!category.isActive)
+        throw new BadRequestException('Category is already inactive.');
+      const assigned = await tx.orm.public.Product.where({
+        categoryId: id,
+        isActive: true,
+      }).all();
+      if (assigned.length)
+        throw new ConflictException(
+          `Reassign the ${assigned.length} active product(s) before archiving this category.`,
+        );
+      return tx.orm.public.Category.where({ id }).update({ isActive: false });
     });
   }
 

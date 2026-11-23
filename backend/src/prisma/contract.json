@@ -229,6 +229,13 @@
                   "kind": "scalar"
                 }
               },
+              "isSuspended": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "name": {
                 "nullable": false,
                 "type": {
@@ -339,6 +346,9 @@
                 },
                 "isActive": {
                   "column": "isActive"
+                },
+                "isSuspended": {
+                  "column": "isSuspended"
                 },
                 "name": {
                   "column": "name"
@@ -1021,6 +1031,15 @@
                   },
                   "nullable": false
                 },
+                "isSuspended": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
+                },
                 "name": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -1616,7 +1635,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "a9671c81d9b6c832d2016b37dd5b7a0ab516398c53772e172fef9e47359f97e4"
+    "storageHash": "6d90a76200e3083bc8affb1df6c8f4d8f422130fa2defaa5d3789a816c550a8a"
   },
   "execution": {
     "executionHash": "13ea6d682b3acca6cdcd391381b97485697bfb5691d4963d4136b2abe32d86b6",

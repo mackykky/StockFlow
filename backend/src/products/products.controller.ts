@@ -52,4 +52,22 @@ export class ProductsController {
   deactivate(@Param('id', ParseIntPipe) id: number) {
     return this.productsService.deactivate(id);
   }
+
+  @Patch(':id/activate')
+  @Roles('ADMIN')
+  activate(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.activate(id);
+  }
+
+  @Patch(':id/archive')
+  @Roles('ADMIN')
+  archive(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.archive(id);
+  }
+
+  @Patch(':id/restore')
+  @Roles('ADMIN')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.restore(id);
+  }
 }
