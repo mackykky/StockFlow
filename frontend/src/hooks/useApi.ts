@@ -81,9 +81,9 @@ export function useApi() {
         );
       }
 
-      if (response.status === 409) {
+      if (response.status === 400 || response.status === 409) {
         const details = await response.json().catch(() => null);
-        throw new ApiError(typeof details?.message === "string" ? details.message : "The record has changed. Refresh and try again.", 409);
+        throw new ApiError(typeof details?.message === "string" ? details.message : "The request could not be completed. Review your entries.", response.status);
       }
 
       if (!response.ok) {

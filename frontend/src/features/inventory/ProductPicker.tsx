@@ -1,9 +1,10 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { productStatus, type Product } from "../products/product.types";
 
 interface Props {
   products: Product[];
   selected?: Product;
+  allowArchived?: boolean;
   disabled: boolean;
   onSelect: (id: string) => void;
 }
@@ -12,7 +13,7 @@ function label(product: Product) {
   return product.name + " · " + product.sku + (product.isActive ? "" : " (" + productStatus(product).toLowerCase() + ")");
 }
 
-export default function ProductPicker({ products, selected, disabled, onSelect }: Props) {
+export default function ProductPicker({ products, selected, disabled, onSelect, allowArchived = true }: Props) {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -36,10 +37,10 @@ export default function ProductPicker({ products, selected, disabled, onSelect }
     <div className="relative">
       <div className="flex items-center justify-between gap-3">
       <label htmlFor="inventory-product" className="font-semibold">Product</label>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={disabled} checked={includeArchived} onChange={e => {
+      {allowArchived && <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={disabled} checked={includeArchived} onChange={e => {
         setIncludeArchived(e.target.checked);
         if (!e.target.checked && selected && productStatus(selected) === "Archived") choose();
-      }} />Include archived</label>
+      }} />Include archived</label>}
       </div>
       <div className="mt-1 flex items-center gap-2">
         <input id="inventory-product" role="combobox" aria-autocomplete="list" autoComplete="off"
