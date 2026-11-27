@@ -3,9 +3,13 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service.js';
 import type { StockMovementTypeInput } from '../stock-movements/dto/create-stock-movement.dto.js';
 
+const businessDate = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+
 interface StockMovementReportFilters {
   productId?: number;
-  type?: StockMovementTypeInput;
+  type?: StockMovementTypeInput | 'SALE';
   startDate?: string;
   endDate?: string;
 }
@@ -26,12 +30,12 @@ export class ReportsService {
       (product) => product.isActive,
     );
 
-    const totalStockUnits = activeProducts.reduce(
+    const totalStockUnits = products.reduce(
       (total, product) => total + product.stockQuantity,
       0,
     );
 
-    const inventoryCostValue = activeProducts.reduce(
+    const inventoryCostValue = products.reduce(
       (total, product) =>
         total +
         Number(product.costPrice) * product.stockQuantity,
@@ -41,6 +45,7 @@ export class ReportsService {
     return {
       totalActiveProducts: activeProducts.length,
       totalStockUnits,
+      sellableStockUnits: activeProducts.reduce((sum, p) => sum + p.stockQuantity, 0),
       inventoryCostValue: inventoryCostValue.toFixed(2),
       lowStockProducts: activeProducts.filter(
         (product) =>
@@ -102,14 +107,6 @@ async getStockMovements(
     ]),
   );
 
-  const startTimestamp = filters.startDate
-    ? new Date(`${filters.startDate}T00:00:00.000Z`).getTime()
-    : undefined;
-
-  const endTimestamp = filters.endDate
-    ? new Date(`${filters.endDate}T23:59:59.999Z`).getTime()
-    : undefined;
-
   return movements
     .filter((movement) => {
       if (
@@ -126,22 +123,10 @@ async getStockMovements(
         return false;
       }
 
-      const movementTimestamp = new Date(
-        movement.createdAt,
-      ).getTime();
-
-      if (
-        startTimestamp !== undefined &&
-        movementTimestamp < startTimestamp
-      ) {
-        return false;
-      }
-
-      if (
-        endTimestamp !== undefined &&
-        movementTimestamp > endTimestamp
-      ) {
-        return false;
+      if (filters.startDate || filters.endDate) {
+        const day = businessDate.format(new Date(movement.createdAt));
+        if (filters.startDate && day < filters.startDate) return false;
+        if (filters.endDate && day > filters.endDate) return false;
       }
 
       return true;
@@ -179,16 +164,13 @@ async getInventorySummaryProducts() {
     ]),
   );
 
-  const activeProducts = products.filter(
-    (product) => product.isActive,
-  );
-
-  return activeProducts.map((product) => ({
+  return products.filter(p => p.isActive || p.isSuspended || p.stockQuantity !== 0).map((product) => ({
     sku: product.sku,
     name: product.name,
     categoryName:
       categoriesById.get(product.categoryId) ?? 'Unknown Category',
     stockQuantity: product.stockQuantity,
+    sellableQuantity: product.isActive ? product.stockQuantity : 0,
     costPrice: Number(product.costPrice).toFixed(2),
   }));
 }
@@ -198,63 +180,8 @@ async getInventorySummaryProducts() {
 async getDashboard() {
   const inventorySummary = await this.getInventorySummary();
 
-  const sales =
-    await this.databaseService.db.orm.public.Sale
-      .where({})
-      .all();
-
-
-  const completedSales = sales.filter(
-    (sale) => sale.status === 'COMPLETED',
-  );
-
-
-  const today = new Date();
-
-  const startOfDay = new Date(today);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(today);
-  endOfDay.setHours(23, 59, 59, 999);
-
-
-  const startOfYesterday = new Date(startOfDay);
-  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-
-  const endOfYesterday = new Date(startOfDay);
-  endOfYesterday.setMilliseconds(-1);
-
-
-  const todaysSales = completedSales.filter((sale) => {
-    const saleDate = new Date(sale.createdAt).getTime();
-
-    return (
-      saleDate >= startOfDay.getTime() &&
-      saleDate <= endOfDay.getTime()
-    );
-  });
-
-
-  const yesterdaysSales = completedSales.filter((sale) => {
-    const saleDate = new Date(sale.createdAt).getTime();
-
-    return (
-      saleDate >= startOfYesterday.getTime() &&
-      saleDate <= endOfYesterday.getTime()
-    );
-  });
-
-
-  const todaysSalesTotal = todaysSales.reduce(
-    (total, sale) => total + Number(sale.total),
-    0,
-  );
-
-
-  const yesterdaysSalesTotal = yesterdaysSales.reduce(
-    (total, sale) => total + Number(sale.total),
-    0,
-  );
+  const salesTrends = await this.getSalesTrends();
+  const [yesterday, today] = salesTrends.dailySales.slice(-2);
 
   const recentMovements = (
     await this.getStockMovements()
@@ -266,15 +193,13 @@ async getDashboard() {
   const lowStockProducts =
   await this.getLowStockProducts();
 
-  const salesTrends = await this.getSalesTrends();
-
   return {
     inventory: inventorySummary,
     sales: {
-      todayCount: todaysSales.length,
-      todayTotal: todaysSalesTotal.toFixed(2),
-      yesterdayCount: yesterdaysSales.length,
-      yesterdayTotal: yesterdaysSalesTotal.toFixed(2),
+      todayCount: today.salesCount,
+      todayTotal: today.revenue,
+      yesterdayCount: yesterday.salesCount,
+      yesterdayTotal: yesterday.revenue,
     },
     topSellingProducts,
     lowStockProducts,
@@ -356,15 +281,13 @@ async getSalesTrends() {
     (sale) => sale.status === 'COMPLETED',
   );
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = new Date(businessDate.format(new Date()) + 'T00:00:00Z');
 
   const dailySales = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(today);
-    date.setDate(today.getDate() - (6 - index));
+    date.setUTCDate(today.getUTCDate() - (6 - index));
 
     return {
-      date,
       dateLabel: date.toISOString().slice(0, 10),
       salesCount: 0,
       revenue: 0,
@@ -372,11 +295,10 @@ async getSalesTrends() {
   });
 
   for (const sale of completedSales) {
-    const saleDate = new Date(sale.createdAt);
-    saleDate.setHours(0, 0, 0, 0);
+    const saleDate = businessDate.format(new Date(sale.createdAt));
 
     const matchingDay = dailySales.find(
-      (day) => day.date.getTime() === saleDate.getTime(),
+      (day) => day.dateLabel === saleDate,
     );
 
     if (matchingDay) {

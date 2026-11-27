@@ -10,7 +10,7 @@ describe('AppController (e2e)', () => {
 
   const allowedOrigin = 'http://localhost:5173';
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -72,7 +72,7 @@ describe('AppController (e2e)', () => {
     await request(app.getHttpServer()).get('/').expect(200);
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close();
   });
 });

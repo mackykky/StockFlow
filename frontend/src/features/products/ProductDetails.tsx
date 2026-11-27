@@ -122,7 +122,7 @@ export default function ProductDetails({ id, categoryById, canChangeStatus, onCl
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700"><Tags className="text-blue-600" size={17} aria-hidden="true" /> Pricing</h3>
                 <dl className="mt-4 space-y-3">
                   <div><dt className="text-xs text-slate-600">Selling price</dt><dd className="break-words text-3xl font-semibold tracking-tight tabular-nums">{currency.format(Number(product.sellingPrice))}</dd></div>
-                  <div className="flex flex-wrap justify-between gap-2 border-t border-slate-200 pt-3 text-sm"><dt>Cost price</dt><dd className="break-all font-semibold tabular-nums">{currency.format(Number(product.costPrice))}</dd></div>
+                  {product.costPrice != null && <div className="flex flex-wrap justify-between gap-2 border-t border-slate-200 pt-3 text-sm"><dt>Cost price</dt><dd className="break-all font-semibold tabular-nums">{currency.format(Number(product.costPrice))}</dd></div>}
                 </dl>
               </section>
             </div>

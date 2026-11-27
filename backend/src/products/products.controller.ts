@@ -1,5 +1,7 @@
+import { productForRole } from '../auth/cost-visibility.js';
 import {
   Body,
+  Req,
   Controller,
   Get,
   Param,
@@ -29,13 +31,14 @@ export class ProductsController {
   }
 
   @Get()
-  findAll() {
-    return this.productsService.findAll();
+  async findAll(@Req() request: { user: { role: string } }) {
+    const products = await this.productsService.findAll();
+    return products.map(product => productForRole(product, request.user.role));
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.productsService.findOne(id);
+  async findOne(@Param('id', ParseIntPipe) id: number, @Req() request: { user: { role: string } }) {
+    return productForRole(await this.productsService.findOne(id), request.user.role);
   }
 
   @Patch(':id')

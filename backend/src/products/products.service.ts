@@ -101,7 +101,7 @@ export class ProductsService {
   }
 
   async update(id: number, dto: UpdateProductDto) {
-    const existingProduct = await this.findOne(id);
+    await this.findOne(id);
 
     const sku = dto.sku?.trim();
     const name = dto.name?.trim();

@@ -41,7 +41,8 @@ export class ReportsController {
         'SKU',
         'Product Name',
         'Category',
-        'Stock Quantity',
+        'Physical Stock Quantity',
+        'Sellable Quantity',
         'Cost Price',
         'Inventory Cost Value',
       ],
@@ -50,11 +51,11 @@ export class ReportsController {
         product.name,
         product.categoryName,
         product.stockQuantity,
+        product.sellableQuantity,
         product.costPrice,
         (Number(product.costPrice) * product.stockQuantity).toFixed(2),
       ]),
     );
-
     response
       .header('Content-Type', 'text/csv; charset=utf-8')
       .header(
@@ -123,7 +124,6 @@ export class ReportsController {
         movement.createdAt,
       ]),
     );
-
     response!
       .header('Content-Type', 'text/csv; charset=utf-8')
       .header(
@@ -151,6 +151,7 @@ export class ReportsController {
 
     if (
       type !== undefined &&
+      type !== 'SALE' &&
       !STOCK_MOVEMENT_TYPES.includes(type as StockMovementTypeInput)
     ) {
       throw new BadRequestException('Invalid stock movement type.');
@@ -159,7 +160,7 @@ export class ReportsController {
     if (
       startDate !== undefined &&
       (Number.isNaN(Date.parse(startDate)) ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(startDate))
+        !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || new Date(startDate).toISOString().slice(0, 10) !== startDate)
     ) {
       throw new BadRequestException('startDate must use YYYY-MM-DD format.');
     }
@@ -167,7 +168,7 @@ export class ReportsController {
     if (
       endDate !== undefined &&
       (Number.isNaN(Date.parse(endDate)) ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(endDate))
+        !/^\d{4}-\d{2}-\d{2}$/.test(endDate) || new Date(endDate).toISOString().slice(0, 10) !== endDate)
     ) {
       throw new BadRequestException('endDate must use YYYY-MM-DD format.');
     }
@@ -182,7 +183,7 @@ export class ReportsController {
 
     return {
       productId: parsedProductId,
-      type: type as StockMovementTypeInput | undefined,
+      type: type as StockMovementTypeInput | 'SALE' | undefined,
       startDate,
       endDate,
     };

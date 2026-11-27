@@ -23,11 +23,11 @@ export class ApiError extends Error {
 export function useApi() {
   const { accessToken, signOut } = useAuth();
 
-  const request = useCallback(
-    async <T>(
+  const fetchResponse = useCallback(
+    async (
       endpoint: string,
       options: RequestInit = {},
-    ): Promise<T> => {
+    ): Promise<Response> => {
       if (!accessToken) {
         throw new ApiError('You must sign in to continue.', 401);
       }
@@ -93,14 +93,15 @@ export function useApi() {
         );
       }
 
-      if (response.status === 204) {
-        return undefined as T;
-      }
-
-      return (await response.json()) as T;
+      return response;
     },
     [accessToken, signOut],
   );
 
-  return { request };
+  const request = useCallback(async <T>(endpoint: string, options?: RequestInit): Promise<T> => {
+    const response = await fetchResponse(endpoint, options);
+    return response.status === 204 ? undefined as T : response.json();
+  }, [fetchResponse]);
+
+  return { request, fetchResponse };
 }

@@ -33,6 +33,18 @@ export default function SalesPage() {
   const [notice, setNotice] = useState("");
   const [revision, setRevision] = useState(0);
   const receiptRequest = useRef<AbortController | null>(null);
+  const receiptPanel = useRef<HTMLElement>(null);
+  const revealReceipt = useRef(false);
+
+  useEffect(() => {
+    if (!receipt || !revealReceipt.current || !receiptPanel.current) return;
+    revealReceipt.current = false;
+    receiptPanel.current.focus({ preventScroll: true });
+    receiptPanel.current.scrollIntoView({
+      block: "start",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+    });
+  }, [receipt]);
 
   useEffect(() => () => receiptRequest.current?.abort(), []);
   useEffect(() => {
@@ -117,7 +129,10 @@ export default function SalesPage() {
     setReceipt(null);
     try {
       const detail = await request<SaleDetails>("/sales/" + id, { signal: controller.signal });
-      if (!controller.signal.aborted) setReceipt(detail);
+      if (!controller.signal.aborted) {
+        revealReceipt.current = true;
+        setReceipt(detail);
+      }
     } catch (err) {
       if (!controller.signal.aborted) setReceiptError(err instanceof Error ? err.message : "Unable to open sale.");
     } finally {
@@ -159,7 +174,7 @@ export default function SalesPage() {
       </div>
     </section>
     {receiptError && <p role="alert" className="text-red-700">{receiptError}</p>}
-    {receipt && <section className={panel} aria-label="Sale details">
+    {receipt && <section ref={receiptPanel} tabIndex={-1} className={panel + " scroll-mt-24"} aria-label="Sale details">
       <div className="flex items-center justify-between gap-3"><h3 className="break-all text-lg font-semibold">{receipt.saleNumber}</h3>
         <button className={button} onClick={() => setReceipt(null)}>Close details</button></div>
       <p className="mt-1 text-sm text-slate-600">{date.format(new Date(receipt.createdAt))} · {receipt.status} · User #{receipt.soldById}</p>

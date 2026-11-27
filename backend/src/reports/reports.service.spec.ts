@@ -54,6 +54,10 @@ describe('ReportsService', () => {
             db: {
               orm: {
                 public: {
+                  Sale: { where: () => ({ all: async () => [
+                    { status: 'COMPLETED', total: '10.00', createdAt: '2026-10-01T15:59:59.999Z' },
+                    { status: 'COMPLETED', total: '20.00', createdAt: '2026-10-01T16:00:00.000Z' },
+                  ] }) },
                   Product: {
                     where: mockProductQuery,
                   },
@@ -71,6 +75,20 @@ describe('ReportsService', () => {
     service = module.get<ReportsService>(ReportsService);
   });
 
+  it('labels sales on either side of Manila midnight with the correct business day', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-10-01T16:00:01Z'));
+      const trend = await service.getSalesTrends();
+      expect(trend.dailySales.slice(-2)).toEqual([
+        { date: '2026-10-01', salesCount: 1, revenue: '10.00' },
+        { date: '2026-10-02', salesCount: 1, revenue: '20.00' },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
@@ -79,13 +97,14 @@ describe('ReportsService', () => {
     await expect(service.getInventorySummary()).resolves.toEqual({
       totalActiveProducts: 0,
       totalStockUnits: 0,
+      sellableStockUnits: 0,
       inventoryCostValue: '0.00',
       lowStockProducts: 0,
       outOfStockProducts: 0,
     });
   });
 
-  it('should calculate inventory totals using active products only', async () => {
+  it('should count inactive stock as physical stock and exclude it from sellable units', async () => {
     mockProducts = [
       {
         id: 1,
@@ -121,8 +140,9 @@ describe('ReportsService', () => {
 
     await expect(service.getInventorySummary()).resolves.toEqual({
       totalActiveProducts: 2,
-      totalStockUnits: 14,
-      inventoryCostValue: '5500.00',
+      totalStockUnits: 114,
+      sellableStockUnits: 14,
+      inventoryCostValue: '15500.00',
       lowStockProducts: 1,
       outOfStockProducts: 0,
     });
@@ -319,7 +339,7 @@ describe('ReportsService', () => {
         quantityAfter: 10,
         productId: 1,
         userId: 1,
-        createdAt: new Date('2026-09-30T23:59:59.000Z'),
+        createdAt: new Date('2026-09-30T15:59:59.999Z'),
       },
       {
         id: 2,
@@ -337,7 +357,7 @@ describe('ReportsService', () => {
         quantityAfter: 23,
         productId: 1,
         userId: 1,
-        createdAt: new Date('2026-10-10T23:59:59.000Z'),
+        createdAt: new Date('2026-10-10T15:59:59.999Z'),
       },
       {
         id: 4,
@@ -346,7 +366,7 @@ describe('ReportsService', () => {
         quantityAfter: 26,
         productId: 1,
         userId: 1,
-        createdAt: new Date('2026-10-11T00:00:00.000Z'),
+        createdAt: new Date('2026-10-10T16:00:00.000Z'),
       },
     ];
 

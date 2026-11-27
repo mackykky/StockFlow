@@ -1,3 +1,4 @@
+import { receiptForRole } from '../auth/cost-visibility.js';
 
 import {
   Body,
@@ -29,11 +30,12 @@ export class SalesController {
   constructor(private readonly salesService: SalesService) {}
 
   @Post()
-  create(
+  async create(
     @Body() dto: CreateSaleDto,
     @Request() request: AuthenticatedRequest,
   ) {
-    return this.salesService.create(dto, request.user.id);
+    const result = await this.salesService.create(dto, request.user.id);
+    return { ...result, sale: receiptForRole(result.sale, request.user.role) };
   }
 
   @Get()
@@ -42,7 +44,7 @@ export class SalesController {
   }
 
   @Get(':id')
-  findById(@Param('id', ParseIntPipe) id: number) {
-    return this.salesService.findById(id);
+  async findById(@Param('id', ParseIntPipe) id: number, @Request() request: AuthenticatedRequest) {
+    return receiptForRole(await this.salesService.findById(id), request.user.role);
   }
 }

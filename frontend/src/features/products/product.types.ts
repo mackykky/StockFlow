@@ -4,7 +4,7 @@ export interface Product {
   name: string;
   description: string | null;
   categoryId: number;
-  costPrice: string | number;
+  costPrice?: string | number;
   sellingPrice: string | number;
   stockQuantity: number;
   reorderLevel: number;

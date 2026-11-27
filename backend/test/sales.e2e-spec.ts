@@ -388,6 +388,35 @@ describe('Sales (e2e)', () => {
     expect(response.body.items[0].quantity).toBe(2);
   });
 
+  it('protects unit costs and reconciles sale movements and inactive stock in reports', async () => {
+    const { body: product } = await createProduct().expect(201);
+    await createMovement(product.id, 10).expect(201);
+    const { body: checkout } = await createSale([{ productId: product.id, quantity: 3 }], staffToken).expect(201);
+    expect(checkout.sale.items[0]).not.toHaveProperty('unitCost');
+    const api = request(app.getHttpServer());
+    const read = (path: string, token: string) => api.get(path).set('Authorization', 'Bearer ' + token).expect(200);
+    for (const token of [staffToken, managerToken, adminToken]) {
+      const detail = await read('/products/' + product.id, token);
+      const catalog = await read('/products', token);
+      const receipt = await read('/sales/' + checkout.sale.id, token);
+      const listed = catalog.body.find((p: { id: number }) => p.id === product.id);
+      expect('costPrice' in detail.body).toBe(token !== staffToken);
+      expect('costPrice' in listed).toBe(token !== staffToken);
+      expect('unitCost' in receipt.body.items[0]).toBe(token !== staffToken);
+      expect(Number(receipt.body.items[0].unitPrice)).toBe(150);
+    }
+    await api.patch('/products/' + product.id + '/deactivate').set('Authorization', 'Bearer ' + adminToken).expect(200);
+    const summary = await read('/reports/inventory-summary/export', managerToken);
+    expect(summary.text.split(/\r?\n/).find(row => row.startsWith(product.sku + ','))).toContain(',7,0,100.00,700.00');
+    const query = '?type=SALE&productId=' + product.id;
+    const movements = await read('/reports/stock-movements' + query, staffToken);
+    expect(movements.body).toHaveLength(1);
+    expect(movements.body[0]).toMatchObject({ type: 'SALE', quantityAfter: 7 });
+    const csv = await read('/reports/stock-movements/export' + query, staffToken);
+    expect(csv.text).toContain(product.sku);
+    expect(csv.text).not.toContain('PURCHASE');
+  });
+
   it('should return 404 for a nonexistent sale', async () => {
     await request(app.getHttpServer())
       .get('/sales/999999999')

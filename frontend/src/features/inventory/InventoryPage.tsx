@@ -1,3 +1,4 @@
+import { movementLabels, type MovementType } from "./movementTypes";
 import ProductPicker from "./ProductPicker";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { hasPermission } from "../auth/permissions";
@@ -5,16 +6,6 @@ import { useAuth } from "../auth/useAuth";
 import { useApi, ApiError } from "../../hooks/useApi";
 import type { Product } from "../products/product.types";
 
-const movementLabels = {
-  OPENING_STOCK: "Opening stock",
-  PURCHASE: "Purchase",
-  ADJUSTMENT_IN: "Adjustment in",
-  RETURN_IN: "Return in",
-  ADJUSTMENT_OUT: "Adjustment out",
-  RETURN_OUT: "Return out",
-  SALE: "Sale",
-};
-type MovementType = keyof typeof movementLabels;
 type ManualType = Exclude<MovementType, "SALE">;
 
 interface Movement {

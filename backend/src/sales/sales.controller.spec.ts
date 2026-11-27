@@ -48,7 +48,7 @@ describe('SalesController', () => {
     };
 
     salesService.create.mockResolvedValue({
-      message: 'Sale completed successfully.',
+      message: 'Sale completed successfully.', sale: { items: [] },
     });
 
     await controller.create(dto, authenticatedRequest as never);
@@ -69,7 +69,7 @@ describe('SalesController', () => {
 
     salesService.findById.mockResolvedValue(sale);
 
-    await expect(controller.findById(1)).resolves.toEqual(sale);
+    await expect(controller.findById(1, { user: {role: 'ADMIN'} } as never)).resolves.toEqual(sale);
 
     expect(salesService.findById).toHaveBeenCalledWith(1);
   });
